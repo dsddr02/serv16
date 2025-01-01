@@ -1,6 +1,6 @@
 
 ```
-curl -s https://raw.githubusercontent.com/yutian81/serv00-ct8-ssh/main/sb_serv00_socks.sh -o sb00.sh && bash sb00.sh  
+curl -s https://raw.githubusercontent.com/dsddr02/serv/refs/heads/main/sb_serv00_socks.sh -o sb00.sh && bash sb00.sh  
 ```
 ![主菜单截图](https://pan.811520.xyz/2024-10/1729677354-image.webp)
 
