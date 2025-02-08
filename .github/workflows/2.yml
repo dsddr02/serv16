@@ -11,11 +11,11 @@ env:
 
 jobs:
   kee:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@main
         
       - name: Install required packages
         run: |
