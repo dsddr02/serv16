@@ -107,3 +107,10 @@ jobs:
               echo "===================================================="
             fi
              done
+      - name: Delete Workflow Runs
+        uses: Mattraks/delete-workflow-runs@v2.0.6
+        with:
+         token: ${{ secrets.GITHUB_TOKEN }}
+         repository: ${{ github.repository }}
+         retain_days: 1
+         keep_minimum_runs: 0
