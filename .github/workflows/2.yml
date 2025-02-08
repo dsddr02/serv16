@@ -1,7 +1,7 @@
 name: Keep Servers Alive
 on:
   schedule:
-    - cron: '0 */4 * * *'  # 每4小时执行一次
+    - cron: '0 */8 * * *'  # 每4小时执行一次
   workflow_dispatch:
 
 jobs:
