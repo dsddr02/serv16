@@ -80,8 +80,8 @@ jobs:
             ARGO_AUTH=$(echo $account | jq -r '.ARGO_AUTH')
             
             if sshpass -p "$SSH_PASS" ssh -o StrictHostKeyChecking=no "$SSH_USER@$HOST" -q exit; then
-              echo "🎉恭喜！✅第【$count】台服务器连接成功！🚀服务器地址：$HOST ，账户名：$SSH_USER"
-              send_telegram_notification "🎉恭喜！✅第【$count】台服务器连接成功！🚀服务器地址：$HOST ，账户名：$SSH_USER"
+              echo "🎉恭喜！✅第【$count】台服务器连接成功！🚀服务器地址：$HOST ，账户"
+              send_telegram_notification "🎉恭喜！✅第【$count】台服务器连接成功！🚀服务器地址：$HOST "
               
               if [ -z "${ARGO_DOMAIN}" ]; then
                 check_process="ps aux | grep '[c]onfig' > /dev/null && ps aux | grep [l]ocalhost:$TCP2_PORT > /dev/null"
