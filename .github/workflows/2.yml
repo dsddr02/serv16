@@ -3,16 +3,16 @@ on:
   schedule:
     - cron: '0 */8 * * *'  # 每4小时执行一次
   workflow_dispatch:
-
-jobs:
-  keep_servers_alive:
-    runs-on: ubuntu-latest
-    env:
+env:
       TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
       TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
       # 动态设置ACCOUNTS
       ACCOUNTS: ${{ secrets.ACCOUNTS }} # 通过GitHub Secrets设置动态的ACCOUNTS变量
 
+jobs:
+  kee:
+    runs-on: ubuntu-latest
+    
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v2
