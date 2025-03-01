@@ -1,64 +1,170 @@
-name: 更新 Nezha Agent 二进制文件
+#==========================================================================
+# Description: Compile the kernel
+# Copyright (C) 2021 https://github.com/unifreq/openwrt_packit
+# Copyright (C) 2021 https://github.com/ophub/amlogic-s9xxx-armbian
+#==========================================================================
+
+name: Compile the kernel
 
 on:
+  repository_dispatch:
   workflow_dispatch:
-  schedule:
-    - cron: "0 0 * * 1"  # 每周一 UTC 0:00
+    inputs:
+      kernel_source:
+        description: "Select the kernel source"
+        required: false
+        default: "unifreq"
+        type: choice
+        options:
+          - unifreq
+          - codesnas
+      kernel_version:
+        description: "Select kernel version"
+        required: false
+        default: "6.12.y"
+        type: choice
+        options:
+          - 5.4.y
+          - 5.10.y
+          - 5.15.y
+          - 6.1.y
+          - 6.6.y
+          - 6.12.y
+          - 5.4.y_5.10.y
+          - 5.15.y_6.1.y
+          - 6.6.y_6.12.y
+      kernel_auto:
+        description: "Auto use the latest kernel"
+        required: false
+        default: true
+        type: boolean
+      kernel_package:
+        description: "Select compile package list"
+        required: false
+        default: "all"
+        type: choice
+        options:
+          - all
+          - dtbs
+      kernel_toolchain:
+        description: "Select the compilation toolchain"
+        required: false
+        default: "gcc"
+        type: choice
+        options:
+          - clang
+          - gcc
+          - gcc-11.3
+          - gcc-12.2
+          - gcc-12.3
+          - gcc-13.2
+          - gcc-13.3
+      compress_format:
+        description: "Set the initrd compression format"
+        required: false
+        default: "xz"
+        type: choice
+        options:
+          - xz
+          - gzip
+          - zstd
+          - lzma
+      kernel_sign:
+        description: "Set the kernel custom signature"
+        required: false
+        default: "-ophub"
+        type: choice
+        options:
+          - -ophub
+          - -yourname
+
+env:
+  TZ: America/New_York
 
 jobs:
-  update_release:
-    name: 更新 Nezha Agent 在 Release 中的文件
-    runs-on: ubuntu-latest
-
-    env:
-      REPO: nezhahq/agent
-      ZIP_FILE: nezha-agent_freebsd_arm64.zip
-      TARGET_FILE: nz_agent_arm64
-      RELEASE_TAG: arm64
-      RELEASE_TITLE: freebsd
-      RELEASE_NOTES: nezha_agent_arm64 for freebsd.
+  build:
+    runs-on: ubuntu-22.04
+    if: ${{ github.event.repository.owner.id }} == ${{ github.event.sender.id }}
 
     steps:
-      - name: 检出代码
-        uses: actions/checkout@v3
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - name: 安装 jq
-        run: sudo apt-get install -y jq
-
-      - name: 下载 Nezha Agent 最新文件
-        run: |
-          wget -q https://github.com/$REPO/releases/latest/download/$ZIP_FILE
-          unzip -q $ZIP_FILE
-          # 提取解压后第一个二进制文件并重命名
-          BINARY_FILE=$(find . -type f -executable | head -n 1)
-          mv "$BINARY_FILE" $TARGET_FILE
-          # 使用 GitHub API 提取版本号
-          VERSION=$(curl -s https://api.github.com/repos/$REPO/releases/latest | jq -r .tag_name)
-          echo "VERSION=$VERSION" >> $GITHUB_ENV
-
-      - name: 删除旧的发布文件
-        run: |
-          # 获取现有的资产 ID
-          asset_id=$(gh release view $RELEASE_TAG --json assets | jq -r ".assets[] | select(.name == \"$TARGET_FILE\") | .id")
-          if [ "$asset_id" ]; then
-            # 删除指定的资产
-            gh release delete-asset $RELEASE_TAG --asset-id $asset_id
-          else
-            # 如果没有找到有效的 asset_id，则使用模式匹配删除旧文件
-            gh release delete-asset $RELEASE_TAG --pattern "$TARGET_FILE" || true
-          fi
-
-      - name: 上传 Nezha Agent 文件
+      - name: Initialization environment
+        id: init
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DEBIAN_FRONTEND: noninteractive
         run: |
-          # 检查 Release 是否已存在
-          release_exists=$(gh release view $RELEASE_TAG --json tagName -q ".tagName" || echo "未找到")
-          if [[ "$release_exists" == "$RELEASE_TAG" ]]; then
-            echo "Release $RELEASE_TAG 已存在，正在上传文件并更新备注。"
-            gh release upload $RELEASE_TAG $TARGET_FILE --clobber
-            gh release edit $RELEASE_TAG --notes "$RELEASE_NOTES Version: ${{ env.VERSION }}"
-          else
-            echo "Release $RELEASE_TAG 不存在，正在创建新的 release 并上传文件。"
-            gh release create $RELEASE_TAG $TARGET_FILE --title "$RELEASE_TITLE" --notes "$RELEASE_NOTES Version: ${{ env.VERSION }}"
-          fi
+          docker rmi $(docker images -q) 2>/dev/null
+          [[ -n "${AGENT_TOOLSDIRECTORY}" ]] && sudo rm -rf "${AGENT_TOOLSDIRECTORY}"
+          sudo rm -rf /usr/share/dotnet /etc/apt/sources.list.d /usr/local/lib/android 2>/dev/null
+          sudo swapoff -a
+          sudo rm -f /swapfile /mnt/swapfile
+          sudo -E apt-get -y update
+          sudo -E apt-get -y purge azure-cli ghc* zulu* llvm* firefox google* dotnet* powershell openjdk* mongodb* moby* || true
+          sudo -E apt-get -y install $(curl -fsSL https://tinyurl.com/ubuntu2204-build-armbian)
+          sudo -E systemctl daemon-reload
+          #sudo -E apt-get -y full-upgrade
+          sudo -E apt-get -y autoremove --purge
+          sudo -E apt-get clean
+          sudo sed -i '/NVM_DIR/d;/skel/d' /root/{.bashrc,.profile}
+          sudo rm -rf ~/{.cargo,.dotnet,.rustup}
+          sudo timedatectl set-timezone "${TZ}"
+          echo "status=success" >> ${GITHUB_OUTPUT}
+
+      - name: Create simulated physical disk
+        id: disk
+        run: |
+          mnt_size=$(expr $(df -h /mnt | tail -1 | awk '{print $4}' | sed 's/[[:alpha:]]//g' | sed 's/\..*//') - 1)
+          root_size=$(expr $(df -h / | tail -1 | awk '{print $4}' | sed 's/[[:alpha:]]//g' | sed 's/\..*//') - 4)
+          sudo truncate -s "${mnt_size}"G /mnt/mnt.img
+          sudo truncate -s "${root_size}"G /root.img
+          sudo losetup /dev/loop6 /mnt/mnt.img
+          sudo losetup /dev/loop7 /root.img
+          sudo pvcreate /dev/loop6
+          sudo pvcreate /dev/loop7
+          sudo vgcreate github /dev/loop6 /dev/loop7
+          sudo lvcreate -n runner -l 100%FREE github
+          sudo mkfs.xfs /dev/github/runner
+          sudo mkdir -p /builder
+          sudo mount /dev/github/runner /builder
+          sudo chown -R runner.runner /builder
+          df -Th
+
+      - name: Create a mapped directory
+        id: mapped
+        working-directory: /builder
+        run: |
+          df -hT ${PWD}
+          mkdir -p /builder/{kernel,output}
+          ln -sf /builder/kernel /home/runner/work/_actions/ophub/amlogic-s9xxx-armbian/main/compile-kernel/kernel
+          ln -sf /builder/output /home/runner/work/_actions/ophub/amlogic-s9xxx-armbian/main/compile-kernel/output
+          echo "status=success" >> ${GITHUB_OUTPUT}
+
+      - name: Compile the kernel [ ${{ inputs.kernel_version }} ]
+        uses: ophub/amlogic-s9xxx-armbian@main
+        if: ${{ steps.mapped.outputs.status }} == 'success' && !cancelled()
+        with:
+          build_target: kernel
+          kernel_source: ${{ inputs.kernel_source }}
+          kernel_version: ${{ inputs.kernel_version }}
+          kernel_auto: ${{ inputs.kernel_auto }}
+          kernel_package: ${{ inputs.kernel_package }}
+          kernel_toolchain: ${{ inputs.kernel_toolchain }}
+          kernel_sign: ${{ inputs.kernel_sign }}
+          compress_format: ${{ inputs.compress_format }}
+
+      - name: Upload Kernel to Release
+        uses: ncipollo/release-action@main
+        if: ${{ env.PACKAGED_STATUSS }} == 'success' && !cancelled()
+        with:
+          tag: kernel_stable
+          artifacts: ${{ env.PACKAGED_OUTPUTPATH }}/*
+          allowUpdates: true
+          removeArtifacts: false
+          replacesArtifacts: true
+          token: ${{ secrets.GITHUB_TOKEN }}
+          body: |
+            The kernel can be used to compile Armbian and OpenWrt.
+            The kernel source code comes from: ${{ inputs.kernel_source }}
+            The kernel compilation toolchain: ${{ inputs.kernel_toolchain }}
