@@ -87,16 +87,11 @@ jobs:
 
             if sshpass -p "$SSH_PASS" ssh -o StrictHostKeyChecking=no "$SSH_USER@$HOST" -q exit; then
               echo "🎉恭喜！✅第【$count】台服务器连接成功！🚀服务器地址：$HOST ，账户"
-              if [ -z "${ARGO_DOMAIN}" ]; then
-                check_process="ps aux | grep '[c]onfig' > /dev/null && ps aux | grep [l]ocalhost:$TCP2_PORT > /dev/null"
-              else
-                check_process="ps aux | grep '[c]onfig' > /dev/null && ps aux | grep '[t]oken $ARGO_AUTH' > /dev/null"
-              fi
-
+              
               if ! sshpass -p "$SSH_PASS" ssh -o StrictHostKeyChecking=no "$SSH_USER@$HOST" "$check_process" || [[ "$RES" =~ ^[Yy]$ ]]; then
                 echo "⚠️检测到主进程或者argo进程未启动，或者执行重置"
                 send_telegram_notification "⚠️检测到主进程或者argo进程未启动，或者执行重置🚀服务器地址：$HOST ||需要重置的详细信息||"
-                output=$(run_remote_command "$RES" "$SSH_USER" "$SSH_PASS" "${REALITY}" "$SUUID" "$TCP1_PORT" "$TCP2_PORT" "$UDP_PORT" "$HOST" "${ARGO_DOMAIN}" "${ARGO_AUTH}")
+                #output=$(run_remote_command "$RES" "$SSH_USER" "$SSH_PASS" "${REALITY}" "$SUUID" "$TCP1_PORT" "$TCP2_PORT" "$UDP_PORT" "$HOST" "${ARGO_DOMAIN}" "${ARGO_AUTH}")
                 echo "远程命令执行结果已成功隐藏。"
               else
                 echo "🎉恭喜！✅检测到所有进程正常运行中 "
