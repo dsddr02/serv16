@@ -64,3 +64,21 @@ jobs:
          repository: ${{ github.repository }}
          retain_days: 1
          keep_minimum_runs: 0
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install requests
+        pip install beautifulsoup4     
+        pip install selenium webdriver-manager
+    - name: BestCF
+      run: |
+        python ${{ github.workspace }}/prox.py
+      env:
+        CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        CF_ZONE_ID: ${{ secrets.CF_ZONE_ID }}
+        TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+        TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+
+        
+    
+     
